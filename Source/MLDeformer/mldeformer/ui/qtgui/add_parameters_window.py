@@ -51,7 +51,7 @@ class addParametersWindow(QtWidgets.QMainWindow):
             self.event_handler.register_default_filter_settings(self.filter)
 
         # Create the main window.
-        self.setObjectName('MLRigGeneratoraddParametersWindow')
+        self.setObjectName('MLDeformerGeneratoraddParametersWindow')
         self.setWindowTitle('Add Parameters')
         self.resize(1100, 600)
         self.main_widget = QtWidgets.QWidget(self)

@@ -178,7 +178,8 @@ def list_parameters():
 
 
 def generate_samples(start_frame=0, end_frame=1000,
-                     controller_probability=0.2, random_seed=7777):
+                     controller_probability=0.2, set_range_limit_probability=0.01,
+                     random_seed=7777):
     """Generate samples given the current parameter settings
 
     This function executes the mldeformer.generator.maya.pose_generator to create random animation on the 
@@ -188,6 +189,7 @@ def generate_samples(start_frame=0, end_frame=1000,
         start_frame (int, optional): The first frame to start generating samples
         end_frame (int, optional): The last frame of the generated samples
         controller_probability (float, optional): Probability of a controller activating
+        set_range_limit_probability (float, optional): Probability of making a controller the max or min value
         random_seed:(int, optional): The seed value used by the random number generator
 
     Example: 
@@ -203,6 +205,8 @@ def generate_samples(start_frame=0, end_frame=1000,
     deformer_config.start_frame = start_frame
     deformer_config.num_samples = end_frame - start_frame
     deformer_config.controller_probability = controller_probability
+    deformer_config.set_max_probability = set_range_limit_probability
+    
     deformer_config.random_seed = random_seed
 
     generate_results = api_module.iface.generate_samples()

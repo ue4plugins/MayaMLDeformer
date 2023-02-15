@@ -13,12 +13,13 @@ from PySide2 import QtCore
 
 class EditMeshMappingDialog(QtWidgets.QDialog):
     min_label_text_width = 120
+    ok_pressed = QtCore.Signal(list)
 
     def __init__(self, parent, event_handler, base_mesh_name='', target_mesh_name=''):
         super(EditMeshMappingDialog, self).__init__(parent)
 
         self.setWindowTitle('Configure Mesh Mapping')
-
+        self.setModal(False)
         self.base_mesh_name = base_mesh_name
         self.target_mesh_name = target_mesh_name
         self.event_handler = event_handler

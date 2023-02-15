@@ -12,15 +12,17 @@ if not cmds.pluginInfo('fbxmaya', q=True, loaded=True):
 
 def select_listed_meshes(mesh_list):
     shapes_list = cmds.ls(selection=False, long=True, objectsOnly=True, geometry=True, type='mesh')
-    meshes_to_remove = set() 
+    meshes_transforms_to_remove = set() 
+
     if shapes_list:
-        all_meshes = cmds.listRelatives(shapes_list, parent=True)
-        meshes_to_remove = set(all_meshes) - set(mesh_list) # Remove duplicates and sort by name
-    
-    all_objects = cmds.ls()
-    objects_to_select = list(set(all_objects) - meshes_to_remove)
-    cmds.select(objects_to_select)
-    
+        all_mesh_transforms = cmds.listRelatives(shapes_list, parent=True)
+        meshes_transforms_to_remove = set(all_mesh_transforms) - set(mesh_list) # Remove duplicates and sort by name
+
+    all_transforms = cmds.ls(selection=False, type="transform")
+
+    transforms_to_select = list(set(all_transforms) - meshes_transforms_to_remove)
+    cmds.select(transforms_to_select)
+
     
 def fbx_export(filepath, selected_meshes=[], start_frame=0, end_frame=100):
     '''
@@ -74,6 +76,6 @@ def fbx_export(filepath, selected_meshes=[], start_frame=0, end_frame=100):
     
     select_listed_meshes(selected_meshes)
     
-    retval = cmds.FBXExport('-es', '-f', filepath)
+    retval = cmds.FBXExport('-s', '-f', filepath)
     cmds.select(old_selection)
     return retval

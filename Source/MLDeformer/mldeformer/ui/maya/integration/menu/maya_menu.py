@@ -6,6 +6,7 @@ from maya import cmds
 
 from ...maya_event_handler import MayaEventHandler
 from ....qtgui.main_window import DeformerMainWindow
+from ....qtgui.export_window import DeformerExportWindow
 
 # Module level state
 self = type("self", (object,), {})
@@ -13,7 +14,8 @@ self.timers = list()
 self.menu = None
 self.installed = False
 self.menu_items = {}
-
+self._deformer_window = None
+self._export_window = None
 
 def _defer(func, time=100):
     timer = QtCore.QTimer()
@@ -58,6 +60,7 @@ def install_menu():
         self.menu = Menu("UE MLDeformer")
         Divider()
         Item("Data Generator", show_deformer_ui)
+        Item("Export to Unreal", show_export_ui)
 
     uninstall_menu()
 
@@ -67,11 +70,32 @@ def install_menu():
 
 
 def show_deformer_ui():
-    event_handler = MayaEventHandler()
-    deformer_ui = DeformerMainWindow(event_handler)
-    deformer_ui.show()
-    pass
+    if self._deformer_window:
+        try:
+            self._deformer_window.show()
+            return
+        except (RuntimeError, AttributeError):
+            pass
 
+    event_handler = MayaEventHandler()
+    window = DeformerMainWindow(event_handler)
+    window.show()
+    self._deformer_window = window
+
+
+def show_export_ui():
+    if self._export_window:
+        try:
+            self._export_window.show()
+            return
+        except (RuntimeError, AttributeError):
+            pass
+
+    event_handler = MayaEventHandler()
+    window = DeformerExportWindow(event_handler)
+    window.show()
+    self._export_window = window
+    
 
 def uninstall_menu():
     if self.menu:

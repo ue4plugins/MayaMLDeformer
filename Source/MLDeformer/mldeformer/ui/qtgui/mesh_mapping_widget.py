@@ -21,7 +21,7 @@ class MeshMappingWidget(QtWidgets.QWidget):
 
         self.event_handler = event_handler
         self.error_text = ''
-
+        self.mesh_mapping_dialog = None
         self.red_brush = QtGui.QBrush(QtGui.QColor(255, 80, 0))
         self.dark_red_brush = QtGui.QBrush(QtGui.QColor(128, 40, 0))
         self.dark_gray_brush = QtGui.QBrush(QtGui.QColor(95, 95, 95))
@@ -114,7 +114,7 @@ class MeshMappingWidget(QtWidgets.QWidget):
         col_count = self.table.columnCount()
         num_selected_rows = len(selected_items) / col_count
         assert (len(selected_items) % col_count) == 0, 'Expected entire row to be selected.'
-        for i in range(0, num_selected_rows):
+        for i in range(0, int(num_selected_rows)):
             item = selected_items[i * col_count + self.table_column__base_mesh_name]
             index = item.data(QtCore.Qt.UserRole)
             resulting_indices.append(index)
@@ -175,15 +175,30 @@ class MeshMappingWidget(QtWidgets.QWidget):
         self.table.clearSelection()
 
     def on_add_button_pressed(self):
-        new_mapping_dialog = EditMeshMappingDialog(self, self.event_handler)
-        if new_mapping_dialog.exec_() == QtWidgets.QDialog.Accepted:
-            base_mesh_name = new_mapping_dialog.base_mesh_name
-            target_mesh_name = new_mapping_dialog.target_mesh_name
-            new_mapping = MeshMapping(base_mesh_name, target_mesh_name, enabled=True)
-            self.event_handler.generator_config.mesh_mappings.append(new_mapping)
-            self.sort_mappings()
-            self.init_table()
-            self.contents_changed.emit()
+        if not self.mesh_mapping_dialog:
+            self.mesh_mapping_dialog = EditMeshMappingDialog(self, self.event_handler)
+            self.mesh_mapping_dialog.finished.connect(self.on_mesh_mapping_finished)
+        self.mesh_mapping_dialog.show()
+
+    def on_mesh_mapping_finished(self, result):
+        if result == QtWidgets.QDialog.Accepted:
+            base_mesh_name = self.mesh_mapping_dialog.base_mesh_name
+            target_mesh_name = self.mesh_mapping_dialog.target_mesh_name
+            mapping_list = self.event_handler.generator_config.mesh_mappings
+            duplicate = False
+            for mapping in mapping_list:
+                if mapping.base_mesh_name == base_mesh_name: 
+                    duplicate = True
+
+            if not duplicate:
+                new_mapping = MeshMapping(base_mesh_name, target_mesh_name, enabled=True)
+                self.event_handler.generator_config.mesh_mappings.append(new_mapping)
+                self.sort_mappings()
+                self.init_table()
+                self.contents_changed.emit()
+
+        self.mesh_mapping_dialog.close()
+        self.mesh_mapping_dialog = None
 
     def update_error_text(self):
         mapping_list = self.event_handler.generator_config.mesh_mappings

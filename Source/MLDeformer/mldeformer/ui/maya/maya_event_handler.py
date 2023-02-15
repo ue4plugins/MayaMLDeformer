@@ -11,7 +11,7 @@ from mldeformer.ui.event_handler import EventHandler
 from mldeformer.ui.attribute_minmax import AttributeMinMax
 from mldeformer.ui.parameter import Parameter
 from mldeformer.ui.maya.joint_limit import JointLimit
-
+from mldeformer.generator.maya.rig import check_interpenetrations
 from mldeformer.generator.maya.io.fbx_cmd import fbx_export
 from mldeformer.generator.maya.io.abc_cmd import abc_export
 
@@ -22,7 +22,7 @@ except ImportError:
     
 def find_top_joint(node):
     """Return the top joints of a given node.
-    >>> find_top_joints('spine_03')
+     >>> find_top_joints('spine_03')
     """
     top_joint = None
 
@@ -103,6 +103,22 @@ class MayaEventHandler(EventHandler):
         self.main_progress_bar = None
 
         # save the Fbx file that contains the linear skinned base mesh and its animation.
+
+    # return a callback to determine if a pose is valid in the dcc
+    def get_pose_valid_callback(self):
+        if self.generator_config.collision_mode == 1:
+            ray_mesh = self.generator_config.ray_mesh
+            collision_mesh = self.generator_config.collision_mesh
+            allowed_collisions = self.generator_config.allowed_collisions
+            if ray_mesh != "" and collision_mesh != "": 
+                return check_interpenetrations.create_ray_mesh_test(ray_mesh, collision_mesh, allowed_collisions)
+        elif self.generator_config.collision_mode == 2:
+            collision_mesh = self.generator_config.collision_mesh
+            bone_list = [] 
+            if collision_mesh != "":
+                return check_interpenetrations.create_bone_mesh_test(bone_list, collision_mesh)
+    
+        return None
 
     def save_fbx(self):
         # Export animation as an FBX file.
@@ -201,6 +217,23 @@ class MayaEventHandler(EventHandler):
             mesh_list = cmds.listRelatives(shapes_list, parent=True)
             mesh_list = sorted(set(mesh_list))  # Remove duplicates and sort by name
 
+        return mesh_list
+
+    # Get the list of selected meshes.
+    def get_selected_mesh_list(self):
+        mesh_list = list()
+
+        shapes_list = cmds.ls(selection=True, long=True, objectsOnly=True, geometry=True, type='mesh')
+        if shapes_list:
+            mesh_list = cmds.listRelatives(shapes_list, parent=True)
+            mesh_list = sorted(set(mesh_list))  # Remove duplicates and sort by name
+        else:
+            mesh_list = cmds.ls(selection=True, transforms=True)
+            shapes_list = cmds.listRelatives(mesh_list, children=True, type='mesh')
+            if shapes_list: 
+                mesh_list = sorted(set(mesh_list))
+            else:
+                mesh_list = list()
         return mesh_list
 
     # Extract rotation limits from a joint in Maya.

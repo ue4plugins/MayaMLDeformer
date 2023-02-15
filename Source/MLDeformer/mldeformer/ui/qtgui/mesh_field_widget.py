@@ -3,6 +3,7 @@
 
 from PySide2 import QtCore
 from PySide2 import QtWidgets
+from PySide2 import QtGui
 
 from mldeformer.ui.event_handler import EventHandler
 from mldeformer.ui.qtgui.mesh_list_picker import MeshListPicker
@@ -32,7 +33,12 @@ class MeshFieldWidget(QtWidgets.QWidget):
         self.mesh_list_widget.setFixedHeight(self.widget_height)
         self.main_layout.addWidget(self.mesh_list_widget)
 
-        self.mesh_select_button = QtWidgets.QPushButton('Select')
+        self.mesh_select_button = QtWidgets.QPushButton('<<')
+        self.mesh_select_button.setFixedHeight(self.widget_height)
+        self.mesh_select_button.clicked.connect(self.on_add_selected_mesh_button_pressed)
+        self.main_layout.addWidget(self.mesh_select_button)
+
+        self.mesh_select_button = QtWidgets.QPushButton(QtGui.QIcon(self.event_handler.add_icon_path), '')
         self.mesh_select_button.setFixedHeight(self.widget_height)
         self.mesh_select_button.clicked.connect(self.on_select_mesh_button_pressed)
         self.main_layout.addWidget(self.mesh_select_button)
@@ -90,3 +96,8 @@ class MeshFieldWidget(QtWidgets.QWidget):
             mesh_list = mesh_picker.get_selected_meshes()
             if mesh_list:
                 self.set_meshes(mesh_list)
+
+    def on_add_selected_mesh_button_pressed(self):
+         mesh_list = self.event_handler.get_selected_mesh_list()
+         if mesh_list: 
+             self.set_meshes(mesh_list)

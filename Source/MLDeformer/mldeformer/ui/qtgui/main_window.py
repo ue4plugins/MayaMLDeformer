@@ -18,9 +18,11 @@ from mldeformer.ui.qtgui.helpers import QtHelpers
 from mldeformer.ui.qtgui.mesh_mapping_widget import MeshMappingWidget
 from mldeformer.ui.qtgui.param_minmax_setup_window import ParamMinMaxSetupWindow
 from mldeformer.ui.recent_file_list import RecentFileList
+from mldeformer.ui.qtgui.mesh_field_widget import MeshFieldWidget
+from mldeformer.ui.qtgui.top_level_window import TopLevelWindow
+from mldeformer.ui.qtgui.table_widget import TableWidget
 
-
-class DeformerMainWindow(QtWidgets.QMainWindow):
+class DeformerMainWindow(TopLevelWindow):
     # Some constants.
     table_column__name = 0
     table_column__default = 1
@@ -33,7 +35,7 @@ class DeformerMainWindow(QtWidgets.QMainWindow):
     main_button_size = 22
 
     def __init__(self, event_handler):
-        super(DeformerMainWindow, self).__init__(event_handler.get_parent_window())
+        super(DeformerMainWindow, self).__init__(event_handler)
         self.event_handler = event_handler
 
         self.setWindowIcon(QtGui.QIcon(self.event_handler.unreal_icon_path))
@@ -75,7 +77,7 @@ class DeformerMainWindow(QtWidgets.QMainWindow):
 
         # Create the main window.
         self.setObjectName('MLDeformerGeneratorWindow')
-        self.setWindowTitle('ML Deformer (Unreal Engine) - Training Data Generation Setup')
+        self.setWindowTitle('MLDeformer (Unreal Engine) - Training Data Generation Setup')
         self.resize(1150, 600)
         self.main_widget = QtWidgets.QWidget(self)
         self.setCentralWidget(self.main_widget)
@@ -131,7 +133,7 @@ class DeformerMainWindow(QtWidgets.QMainWindow):
         self.left_layout.addWidget(self.main_message)
 
         # Create the parameters table.
-        self.parameters_table = QtWidgets.QTableWidget(0, 6)
+        self.parameters_table = TableWidget(0, 6)
         self.parameters_table.hide()
         self.parameters_table.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.parameters_table.customContextMenuRequested.connect(self.on_table_context_menu)
@@ -157,7 +159,7 @@ class DeformerMainWindow(QtWidgets.QMainWindow):
         self.parameters_table.horizontalHeader().setDefaultAlignment(QtCore.Qt.AlignLeft)
         self.parameters_table.horizontalHeader().setStretchLastSection(True)
         self.parameters_table.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Interactive)
-
+        self.parameters_table.paste_rows.connect(self.on_parameter_row_paste)
         # Add the parameters to the table.
         self.init_parameters_table()
 
@@ -203,8 +205,6 @@ class DeformerMainWindow(QtWidgets.QMainWindow):
                                                                               row_index=3,
                                                                               name='Maximum:', value=1.0, decimals=3,
                                                                               min_label_text_width=self.min_label_text_width)
-        self.selected_parameter_default_widget.setReadOnly(True)
-        self.selected_parameter_default_widget.setStyleSheet('color: rgb(120,120,120)')
 
         group_label = QtWidgets.QLabel('Group:')
         group_label.setMinimumWidth(self.min_label_text_width)
@@ -256,7 +256,16 @@ class DeformerMainWindow(QtWidgets.QMainWindow):
             value=config.controller_probability * 100,
             min_value=0, max_value=100,
             min_label_text_width=self.min_label_text_width)
+        _, self.generator_settings_set_max_probability_widget = QtHelpers.add_int_field(
+            layout=self.generator_grid_layout,
+            row_index=4,
+            name='Force Max or Min:',
+            value=config.set_max_min_probability * 100,
+            min_value=0, max_value=100,
+            min_label_text_width=self.min_label_text_width)
+
         self.generator_settings_controller_probability_widget.setSuffix(' %')
+        self.generator_settings_set_max_probability_widget.setSuffix(' %')
         self.generator_grid_layout.setColumnStretch(0, 0)
         self.generator_grid_layout.setColumnStretch(1, 1)
 
@@ -265,62 +274,74 @@ class DeformerMainWindow(QtWidgets.QMainWindow):
         self.generator_settings_start_frame_widget.valueChanged.connect(self.on_generator_settings_start_frame_changed)
         self.generator_settings_controller_probability_widget.valueChanged.connect(
             self.on_generator_settings_controller_probability_changed)
+        self.generator_settings_set_max_probability_widget.valueChanged.connect(
+            self.on_generator_settings_set_max_probability_changed)
 
         # ----------------------------------------------------------
-        # Create the mesh settings section.
-        self.mesh_grid_layout = QtWidgets.QGridLayout()
-        self.mesh_group = QtWidgets.QGroupBox('Mesh Settings')
-        self.mesh_group.setStyleSheet('QGroupBox::title { color: orange }')
-        self.right_layout.addWidget(self.mesh_group)
-        self.mesh_grid_layout.setColumnStretch(0, 0)
-        self.mesh_grid_layout.setColumnStretch(1, 1)
-        self.mesh_group.setLayout(self.mesh_grid_layout)
-        size_policy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.Minimum)
-        self.mesh_group.setSizePolicy(size_policy)
+        # Create the collision settings section.
+        self.collision_grid_layout = QtWidgets.QGridLayout()
+        self.collision_group = QtWidgets.QGroupBox('Collision Settings')
+        self.collision_group.setStyleSheet('QGroupBox::title { color: orange }')
+        _, self.collision_mode_combo_box = QtHelpers.add_combo_box_field(
+            layout=self.collision_grid_layout,
+            row_index=config.collision_mode,
+            name='Collision Detection:',
+            combo_items=['None',
+                         'Ray Mesh vs Collision Mesh',
+                         'Bones vs Collision Mesh'],
+            min_label_text_width=self.min_label_text_width)
+        self.collision_mode_combo_box.currentIndexChanged.connect(self.on_collision_mode_changed)
 
-        self.mesh_widget = MeshMappingWidget(self.event_handler)
-        self.mesh_widget.contents_changed.connect(self.on_mesh_mappings_changed)
-        QtHelpers.add_widget_field(self.mesh_grid_layout, row_index=0, name='Meshes:', widget=self.mesh_widget,
-                                   min_label_text_width=self.min_label_text_width)
-
-        # ----------------------------------------------------------
-        # Create the output section.
-        self.output_grid_layout = QtWidgets.QGridLayout()
-        self.output_group = QtWidgets.QGroupBox('Output Settings')
-        self.output_group.setStyleSheet('QGroupBox::title { color: orange }')
-        self.right_layout.addWidget(self.output_group)
-        self.output_grid_layout.setColumnStretch(0, 0)
-        self.output_grid_layout.setColumnStretch(1, 1)
-        self.output_group.setLayout(self.output_grid_layout)
-        size_policy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.Minimum)
-        self.output_group.setSizePolicy(size_policy)
-
-        self.output_fbx_file_widget = FilePickerFieldWidget(
+        self.right_layout.addWidget(self.collision_group)
+        self.collision_grid_layout.setColumnStretch(0, 0)
+        self.collision_grid_layout.setColumnStretch(1, 1)
+        self.collision_group.setLayout(self.collision_grid_layout)
+        self.ray_mesh_widget = MeshFieldWidget(
             event_handler=self.event_handler,
-            has_check_box=False,
-            is_checked=True,
-            filename=config.output_fbx_file,
-            file_type_description='Fbx Files (*.Fbx)',
-            default_dir=self.event_handler.output_path,
-            caption='save Fbx as...')
-        QtHelpers.add_widget_field(self.output_grid_layout, row_index=0, name='Base Fbx File:',
-                                   widget=self.output_fbx_file_widget, min_label_text_width=self.min_label_text_width)
-
-        self.output_abc_file_widget = FilePickerFieldWidget(
+            allow_multi_select=False,
+            is_optional=False,
+            place_holder_text='<ray mesh>')
+        self.ray_mesh_widget.set_meshes([config.ray_mesh])
+        self.ray_mesh_widget.meshes_changed.connect(self.on_generator_settings_ray_mesh_changed)
+        self.collision_mesh_widget = MeshFieldWidget(
             event_handler=self.event_handler,
-            has_check_box=True,
-            is_checked=config.save_target_alembic,
-            filename=config.output_abc_file,
-            file_type_description='Alembic (*.Abc)',
-            default_dir=self.event_handler.output_path,
-            caption='Save Alembic file as...')
-        QtHelpers.add_widget_field(self.output_grid_layout, row_index=1, name='Target Alembic File:',
-                                   widget=self.output_abc_file_widget, min_label_text_width=self.min_label_text_width)
+            allow_multi_select=False,
+            is_optional=False,
+            place_holder_text='<collision mesh>')
+        self.collision_mesh_widget.set_meshes([config.collision_mesh])
+        self.collision_mesh_widget.meshes_changed.connect(self.on_generator_settings_collision_mesh_changed)
+        
+        QtHelpers.add_widget_field(self.collision_grid_layout, row_index=1, name='Collision Mesh:', 
+                                   widget=self.collision_mesh_widget,
+                                   min_label_text_width=self.min_label_text_width,
+                                   label_alignment=QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter)
+        
+        QtHelpers.add_widget_field(self.collision_grid_layout, row_index=2, name='Ray Mesh:', 
+                                   widget=self.ray_mesh_widget,
+                                   min_label_text_width=self.min_label_text_width,
+                                   label_alignment=QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter)
 
-        self.output_fbx_file_widget.file_picked.connect(self.on_output_fbx_file_picked)
-        self.output_abc_file_widget.file_picked.connect(self.on_output_abc_file_picked)
-        self.output_abc_file_widget.check_box_changed.connect(self.on_output_abc_file_check_box_changed)
+        self.ray_mesh_widget.meshes_changed.connect(self.on_generator_settings_collision_retries_changed)
+    
+        _, self.collision_retry_attempt_widget = QtHelpers.add_int_field(
+            layout=self.collision_grid_layout, row_index=3,
+            name='Retry Attempts:',
+            value=config.collision_retry_attempts,
+            min_value=0,
+            min_label_text_width=self.min_label_text_width)
+        
+        self.collision_retry_attempt_widget.valueChanged.connect(self.on_generator_settings_collision_retries_changed)
 
+        _, self.allowed_collision_widget = QtHelpers.add_int_field(
+            layout=self.collision_grid_layout, row_index=4,
+            name='Allowed Collisions:',
+            value=config.allowed_collisions,
+            min_value=0,
+            min_label_text_width=self.min_label_text_width)
+
+        self.allowed_collision_widget.valueChanged.connect(self.on_generator_settings_allowed_collisions_changed)
+        
+    
         # ----------------------------------------------------------
         # Select the first parameter in the parameters table.
         self.parameters_table.itemSelectionChanged.connect(self.on_parameter_selection_changed)
@@ -354,6 +375,26 @@ class DeformerMainWindow(QtWidgets.QMainWindow):
         self.update_ui_widgets()
         self.parameters_table.setColumnWidth(self.table_column__name, 450)
 
+    def on_parameter_row_paste(self):
+        copy_index = self.parameters_table.copied_index
+        parameters = self.event_handler.generator_config.parameters
+        if self.parameters_table.currentIndex().isValid():
+            paste_index = self.parameters_table.currentIndex().row()
+            if copy_index is not None and paste_index is not None and copy_index != paste_index: 
+                parameters[paste_index].default_value = parameters[copy_index].default_value
+                parameters[paste_index].min_value =  parameters[copy_index].min_value
+                parameters[paste_index].max_value =  parameters[copy_index].max_value
+                self.on_parameter_selection_changed()
+                self.init_parameters_table()
+            
+    def on_collision_mode_changed(self):
+        collision_mode_index = self.collision_mode_combo_box.currentIndex()
+        self.event_handler.generator_config.collision_mode = collision_mode_index
+        self.ray_mesh_widget.setEnabled(collision_mode_index == 1)
+        self.collision_mesh_widget.setEnabled(collision_mode_index != 0)
+        self.collision_retry_attempt_widget.setEnabled(collision_mode_index != 0)
+        self.allowed_collision_widget.setEnabled(collision_mode_index == 1)
+
     def on_filter_text_changed(self, text):
         self.filter_text = text
         self.init_parameters_table()
@@ -364,15 +405,6 @@ class DeformerMainWindow(QtWidgets.QMainWindow):
 
     def enable_ui(self):
         self.main_widget.setEnabled(True)
-
-    def on_output_fbx_file_picked(self, file_path):
-        self.event_handler.generator_config.output_fbx_file = file_path
-
-    def on_output_abc_file_picked(self, file_path):
-        self.event_handler.generator_config.output_abc_file = file_path
-
-    def on_output_abc_file_check_box_changed(self, is_checked):
-        self.event_handler.generator_config.save_target_alembic = is_checked
 
     # Triggered when the parameter selection inside the parameters table changed.
     def on_parameter_selection_changed(self):
@@ -451,11 +483,6 @@ class DeformerMainWindow(QtWidgets.QMainWindow):
             self.parameters_table.item(index, self.table_column__group_name).setText(str(new_value))
             self.update_parameter_colors(index)
 
-    def on_mesh_mappings_changed(self):
-        mapping_index_with_target = self.event_handler.get_first_enabled_mesh_mapping_index_with_target_mesh()
-        if mapping_index_with_target == -1:
-            self.output_abc_file_widget.set_checked(False)
-
     # Generator settings number of samples changed.
     def on_generator_settings_num_samples_changed(self):
         self.event_handler.generator_config.num_samples = self.generator_settings_num_samples_widget.value()
@@ -468,12 +495,30 @@ class DeformerMainWindow(QtWidgets.QMainWindow):
     def on_generator_settings_controller_probability_changed(self):
         self.event_handler.generator_config.controller_probability = self.generator_settings_controller_probability_widget.value() / 100.0
 
+    # Generator settings controller probability changed.
+    def on_generator_settings_set_max_probability_changed(self):
+        self.event_handler.generator_config.set_max_min_probability = self.generator_settings_set_max_probability_widget.value() / 100.0
+        
     def has_invalid_min_max_values(self):
         for parameter in self.event_handler.generator_config.parameters:
             if parameter.min_value > parameter.max_value:
                 return True
         return False
 
+    def on_generator_settings_ray_mesh_changed(self):
+        if len(self.ray_mesh_widget.mesh_list) > 0:
+            self.event_handler.generator_config.ray_mesh = self.ray_mesh_widget.mesh_list[0]
+
+    def on_generator_settings_collision_mesh_changed(self):
+        if len(self.ray_mesh_widget.mesh_list) > 0:
+            self.event_handler.generator_config.collision_mesh = self.collision_mesh_widget.mesh_list[0]
+
+    def on_generator_settings_collision_retries_changed(self):
+        self.event_handler.generator_config.collision_retry_attempts = self.collision_retry_attempt_widget.value()
+
+    def on_generator_settings_allowed_collisions_changed(self):
+        self.event_handler.generator_config.allowed_collisions = self.allowed_collision_widget.value()
+    
     # When we press the Generate button.
     def on_generate_button_pressed(self):
         config = self.event_handler.generator_config
@@ -493,24 +538,6 @@ class DeformerMainWindow(QtWidgets.QMainWindow):
         if self.has_invalid_min_max_values():
             error_text = 'There are <font color="orange">invalid</font> parameter min/max values, where min is greater than max.<br>'
             pre_check_errors.append(error_text)
-
-        # if self.has_non_existing_parameters():
-        #    error_text = 'There are non existing parameters. Please remove them first or fix your {} scene.<br>'.format(self.event_handler.get_dcc_name())
-        #    pre_check_errors.append(error_text)
-
-        mesh_mapping_index = self.event_handler.get_first_enabled_mesh_mapping_index()
-        if mesh_mapping_index == -1:  # We have no enabled meshes to export.
-            error_text = 'There are no enabled mesh mappings, please add some meshes or enable at least one.'
-            pre_check_errors.append(error_text)
-
-        if self.mesh_widget.error_text:
-            pre_check_errors.append(self.mesh_widget.error_text)
-
-        if self.output_fbx_file_widget.error_text:
-            pre_check_errors.append(self.output_fbx_file_widget.error_text)
-
-        if self.output_abc_file_widget.is_checked() and self.output_abc_file_widget.error_text:
-            pre_check_errors.append(self.output_abc_file_widget.error_text)
 
         # Remove duplicates while preserving order.
         if pre_check_errors:
@@ -544,46 +571,6 @@ class DeformerMainWindow(QtWidgets.QMainWindow):
         if len(generate_error) > 0:
             error_list.append(generate_error)
 
-        if generate_success:
-            cmds.refresh(suspend=True)
-
-            try:
-                # save the Fbx.
-                if self.output_fbx_file_widget.is_checked():
-                    print('[MLDeformer] Saving Fbx to file {}'.format(config.output_fbx_file))
-                    self.event_handler.start_progress_bar('Saving Fbx...')
-                    saved_fbx, fbx_error_message = self.event_handler.save_fbx()
-                    if not saved_fbx:
-                        error_message = 'Failed to save Fbx file:<br><b>' + config.output_fbx_file + '</b><br><font color="yellow">' + fbx_error_message + '</font>'
-                        error_list.append(error_message)
-                        print('[MLDeformer] Failed to save Fbx file')
-                    user_cancelled = self.event_handler.is_progress_bar_cancelled()
-                    self.event_handler.stop_progress_bar()
-
-                if user_cancelled:
-                    QtWidgets.QMessageBox.information(self, 'Operation cancelled', 'Generation cancelled by user.',
-                                                      QtWidgets.QMessageBox.Ok)
-                    return
-
-                # save the Alembic if we enabled exporting it, and if there is actually a target mesh.
-                if self.output_abc_file_widget.is_checked() and (
-                    self.event_handler.get_first_enabled_mesh_mapping_index_with_target_mesh() != -1):
-                    print('[MLDeformer] Saving Alembic to file {}'.format(config.output_abc_file))
-                    self.event_handler.start_progress_bar('Saving Alembic...')
-                    saved_alembic, abc_error_message = self.event_handler.save_alembic()
-                    if not saved_alembic:
-                        error_message = 'Failed to save Alembic file:<br><b>' + config.output_abc_file + '</b><br><font color="yellow">' + abc_error_message + '</font>'
-                        error_list.append(error_message)
-                        print('[MLDeformer] Failed to save Alembic file')
-                    user_cancelled = self.event_handler.is_progress_bar_cancelled()
-                    self.event_handler.stop_progress_bar()
-            except RuntimeError:
-                error_message = 'Unexpected runtime error when saving fbx or alembic file'
-                error_list.append(error_message)
-                print('[MLDeformer] Unexpected runtime error')
-            finally:
-                cmds.refresh(suspend=False)
-
         if user_cancelled:
             QtWidgets.QMessageBox.information(self, 'Operation cancelled', 'Generation cancelled by user.',
                                               QtWidgets.QMessageBox.Ok)
@@ -609,32 +596,15 @@ class DeformerMainWindow(QtWidgets.QMainWindow):
 
             QtWidgets.QMessageBox.critical(self, 'Error Report', error_message, QtWidgets.QMessageBox.Ok)
         else:
-            # Extract path and filename from Fbx file.
-            fbx_folder = os.path.dirname(os.path.abspath(config.output_fbx_file))
-            fbx_folder = fbx_folder.replace('\\', '/')  # Needed to make links opening the folder.
-            fbx_file = os.path.basename(os.path.abspath(config.output_fbx_file))
-
-            # Extract path and filename from Alembic file.
-            abc_folder = os.path.dirname(os.path.abspath(config.output_abc_file))
-            abc_folder = abc_folder.replace('\\', '/')  # Needed to make links opening the folder.
-            abc_file = os.path.basename(os.path.abspath(config.output_abc_file))
-
             final_message = 'Successfully generated <b>{}</b> frames of training data using <b>{}</b> parameters!<br><br>'.format(
                 config.num_samples, len(config.parameters))
-
-            if self.output_fbx_file_widget.is_checked():
-                final_message += 'Output Fbx: <a href=\'{}\'><span style=\'color:white;\'>{}</span></a><b>/{}</b><br><br>'.format(
-                    fbx_folder, fbx_folder, fbx_file)
-
-            if self.output_abc_file_widget.is_checked():
-                final_message += 'Output Abc: <a href=\'{}\'><span style=\'color:white;\'>{}</span></a><b>/{}</b><br><br>'.format(
-                    abc_folder, abc_folder, abc_file)
 
             final_message += 'Generation time: <b>{}</b> (hh:mm:ss)'.format(time_passed_string)
             QtWidgets.QMessageBox.information(self, 'Finished Generating Training Data', final_message,
                                               QtWidgets.QMessageBox.Ok)
 
         self.enable_ui()
+        self.close()
 
     # When we pressed the 'Add Parameters' button.
     def on_add_parameters_button_pressed(self):
@@ -662,102 +632,6 @@ class DeformerMainWindow(QtWidgets.QMainWindow):
     def on_parameter_defaults_configure(self):
         self.param_defaults_window = ParamMinMaxSetupWindow(self, self.event_handler)
         self.param_defaults_window.exec_()
-
-    # Create the main menu bar.
-    def create_main_menu(self):
-        self.main_menu = self.menuBar()
-        self.file_menu = self.main_menu.addMenu('File')
-
-        self.configure_menu = self.main_menu.addMenu('Configure')
-        self.attribute_min_max_values_config_action = QtWidgets.QAction('Attribute Min/Max Setup', self)
-        self.configure_menu.addAction(self.attribute_min_max_values_config_action)
-        self.attribute_min_max_values_config_action.triggered.connect(self.on_parameter_defaults_configure)
-
-        self.reset_config_action = QtWidgets.QAction('Reset Current Config', self)
-        self.configure_menu.addAction(self.reset_config_action)
-        self.reset_config_action.setShortcut('Ctrl+R')
-        self.reset_config_action.triggered.connect(self.on_reset_config)
-
-        self.configure_menu.addSeparator()
-
-        self.auto_load_last_config_action = QtWidgets.QAction('Auto Load Last Config', self)
-        self.auto_load_last_config_action.setCheckable(True)
-        self.auto_load_last_config_action.setChecked(self.event_handler.global_settings.auto_load_last_config)
-        self.configure_menu.addAction(self.auto_load_last_config_action)
-        self.auto_load_last_config_action.triggered.connect(self.on_toggle_auto_load_last_config)
-
-        # Open a config file. 
-        open_action = QtWidgets.QAction(QtGui.QIcon(self.event_handler.open_icon_path), 'Load config', self)
-        open_action.setShortcut('Ctrl+O')
-        self.file_menu.addAction(open_action)
-        open_action.triggered.connect(self.on_load_config)
-
-        # save a config file.
-        save_action = QtWidgets.QAction(QtGui.QIcon(self.event_handler.save_icon_path), 'Save config', self)
-        save_action.setShortcut('Ctrl+S')
-        self.file_menu.addAction(save_action)
-        save_action.triggered.connect(self.on_save_config)
-
-        self.file_menu.addSeparator()
-
-        self.recent_configs_menu = self.file_menu.addMenu('Recent Configs')
-        self.fill_recent_configs_menu()
-
-    def fill_recent_configs_menu(self):
-        self.recent_configs_menu.clear()
-        for item in reversed(self.recent_config_list.file_list):
-            action = self.recent_configs_menu.addAction(item)
-            action.triggered.connect(self.on_recent_config)
-
-    def on_recent_config(self):
-        action = self.sender()
-        self.load_config_file(action.text(), init_ui=True, update_recent_file_list=True)
-
-    # When the 'Auto Load Last Config' menu option toggles on or off.
-    def on_toggle_auto_load_last_config(self):
-        self.event_handler.global_settings.auto_load_last_config = self.auto_load_last_config_action.isChecked()
-
-    # Reset the config to defaults.
-    def on_reset_config(self):
-        self.event_handler.generator_config = Config(self.event_handler.rig_deformer_path)
-        self.update_ui_widgets()
-
-    # Load some pre-saved configuration file.
-    def on_load_config(self):
-        file_path, _ = QtWidgets.QFileDialog.getOpenFileName(
-            parent=self,
-            caption='Load configuration from...',
-            dir=self.event_handler.rig_deformer_path,
-            filter='Configuration Files (*.json)')
-
-        if len(file_path) > 0:
-            self.load_config_file(file_path)
-
-    # Load a config from a file.
-    def load_config_file(self, file_path, init_ui=True, update_recent_file_list=True):
-        self.event_handler.generator_config.load_from_file(file_path)
-        if update_recent_file_list:
-            self.recent_config_list.add(file_path)
-            self.recent_config_list.save(self.recent_config_list_file)
-            self.fill_recent_configs_menu()
-
-        if init_ui:
-            self.update_ui_widgets()
-
-    # save the current configuration to a file.
-    def on_save_config(self):
-        # Show the save as dialog.
-        file_path, _ = QtWidgets.QFileDialog.getSaveFileName(
-            parent=self,
-            caption='Save configuration as...',
-            dir=self.event_handler.rig_deformer_path,
-            filter='Configuration Files (*.json)')
-
-        # If we selected a valid filename.
-        if len(file_path) > 0:
-            self.event_handler.generator_config.save_to_file(file_path)
-            self.recent_config_list.add(file_path)
-            self.recent_config_list.save(self.recent_config_list_file)
 
     # Remove a given list of parameters, where the remove list is a list of indices.
     def remove_parameters_by_index_list(self, remove_list):
@@ -812,16 +686,15 @@ class DeformerMainWindow(QtWidgets.QMainWindow):
         self.generator_settings_num_samples_widget.setValue(config.num_samples)
         self.generator_settings_start_frame_widget.setValue(config.start_frame)
         self.generator_settings_controller_probability_widget.setValue(config.controller_probability * 100)
-
-        self.output_fbx_file_widget.set_filename(config.output_fbx_file)
-        self.output_abc_file_widget.set_filename(config.output_abc_file)
-
-        self.output_abc_file_widget.enabled_check_box.setChecked(config.save_target_alembic)
         self.auto_load_last_config_action.setChecked(self.event_handler.global_settings.auto_load_last_config)
-
-        self.mesh_widget.update()
-        self.on_mesh_mappings_changed()
-
+        self.ray_mesh_widget.set_meshes([config.ray_mesh])
+        self.collision_mesh_widget.set_meshes([config.collision_mesh])
+        self.collision_mode_combo_box.setCurrentIndex(config.collision_mode)
+        self.collision_retry_attempt_widget.setValue(config.collision_retry_attempts)
+        self.allowed_collision_widget.setValue(config.allowed_collisions)
+        self.on_generator_settings_collision_mesh_changed()
+        self.on_generator_settings_ray_mesh_changed()
+        self.on_collision_mode_changed()
         self.init_parameters_table()
 
     # Resize the row heights to fit the contents nicely when we resize the window.

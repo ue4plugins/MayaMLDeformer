@@ -19,7 +19,7 @@ class EventHandler(object):
         self.global_settings = GlobalSettings()
 
         user_home_folder = expanduser('~')
-        base_deformer_path = os.path.join(user_home_folder, 'UE_MLRigDeformer')
+        base_deformer_path = os.path.join(user_home_folder, 'UE_MLDeformer')
         dcc_name = self.get_dcc_name()
         self.rig_deformer_path = os.path.join(base_deformer_path, dcc_name)
         self.output_path = os.path.join(base_deformer_path, 'Output')
@@ -65,7 +65,7 @@ class EventHandler(object):
         pass
 
     # Register the default filter settings. Modify the filter member in here. You can overload this function.
-    # The filter parameter is a MLRigDeformerParameterFilter object.
+    # The filter parameter is a MLDeformerParameterFilter object.
     def register_default_filter_settings(self, filter):
         pass
 
@@ -96,7 +96,13 @@ class EventHandler(object):
 
     # Get a list of meshes.
     def get_mesh_list(self):
-        raise Exception('Please implement the save_alembic function in your derived event handler!')
+        raise Exception('Please implement the get_mesh_list function in your derived event handler!')
+        # mesh_list = list()
+        # ...fill list with strings...
+        # return mesh_list
+
+    def get_selected_mesh_list(self):
+        raise Exception('Please implement the get_selected_mesh_list function in your derived event handler!')
         # mesh_list = list()
         # ...fill list with strings...
         # return mesh_list

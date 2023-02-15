@@ -13,15 +13,26 @@ from .parameter import Parameter
 # This is like the state of the system, after a user configures it.
 # Those settings can be saved and loaded to/from json files.
 class Config:
+    COLLISION_MODE_NONE = 0
+    COLLISION_MODE_RAY_MESH = 1
+    COLLISION_MODE_BONE_MESH = 2
+
     def __init__(self, output_folder):
         self.config_version = 2
         self.num_samples = 25000
         self.start_frame = 0
         self.random_seed = 7777
         self.controller_probability = 0.75
+        self.set_max_min_probability = 0.01
         self.save_target_alembic = True
+        self.save_target_fbx = True
         self.output_fbx_file = os.path.join(output_folder, 'BaseMesh.Fbx')
         self.output_abc_file = os.path.join(output_folder, 'TargetMesh.Abc')
+        self.ray_mesh = ""
+        self.collision_mesh = ""
+        self.collision_mode = Config.COLLISION_MODE_NONE
+        self.collision_retry_attempts = 20
+        self.allowed_collisions = 1
         self.parameters = list()
         self.mesh_mappings = list()
 
@@ -37,11 +48,18 @@ class Config:
         if 'start_frame' in config_data: self.start_frame = config_data['start_frame']
         if 'random_seed' in config_data: self.random_seed = config_data['random_seed']
         if 'controller_probability' in config_data: self.controller_probability = config_data['controller_probability']
+        if 'set_max_min_probability' in config_data: self.set_max_probability = config_data['set_max_min_probability']
 
         if 'output_fbx_file' in config_data: self.output_fbx_file = config_data['output_fbx_file']
         if 'output_abc_file' in config_data: self.output_abc_file = config_data['output_abc_file']
 
         if 'save_target_alembic' in config_data: self.save_target_alembic = config_data['save_target_alembic']
+        if 'ray_mesh' in config_data: self.ray_mesh = config_data['ray_mesh']
+        if 'collision_mesh' in config_data: self.collision_mesh = config_data['collision_mesh']
+        if 'collision_mode' in config_data: self.collision_mode = config_data['collision_mode']
+        if 'allowed_collisions' in config_data: self.allowed_collisions = config_data['allowed_collisions']
+        if 'collision_retry_attempts' in config_data: 
+            self.collision_retry_attempts = config_data['collision_retry_attempts']
 
         # Read the mesh mappings.
         del self.mesh_mappings[:]
@@ -67,7 +85,7 @@ class Config:
         # Init the parameters.
         del self.parameters[:]
         for parameter_data in config_data['parameters']:
-            if not all(item in parameter_data for item in ['name', 'display_name', 'default_value', 'min_value', 'max_value', 'object_type']):
+            if not all(item in parameter_data for item in ['name', 'display_name', 'default_value', 'min_value', 'max_value', 'object_type', 'group_name']):
                 continue
             new_parameter = Parameter()
             if 'name' in parameter_data: new_parameter.name = parameter_data['name']
