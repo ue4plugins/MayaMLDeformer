@@ -1,3 +1,2 @@
-+ MLDeformer 5.1 MLDeformer
-PYTHONPATH+:= python
-scripts+:= scripts
++ MLDeformer 5.1 ./MLDeformer
+scripts: .
