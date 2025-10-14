@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 # Copyright Epic Games, Inc. All Rights Reserved
 import os
-from PySide2 import QtGui
-from PySide2 import QtWidgets
+from mldeformer.ui.Qt import QtGui, QtWidgets
 from mldeformer.ui.recent_file_list import RecentFileList
 from mldeformer.ui.config import Config
 from mldeformer.ui.qtgui.param_minmax_setup_window import ParamMinMaxSetupWindow
@@ -116,7 +115,7 @@ class TopLevelWindow(QtWidgets.QMainWindow):
             self.event_handler.generator_config.save_to_file(file_path)
             self.recent_config_list.add(file_path)
             self.recent_config_list.save(self.recent_config_list_file)
-            
+
     # Show the parameter defaults configuration window.
     def on_parameter_defaults_configure(self):
         self.param_defaults_window = ParamMinMaxSetupWindow(self, self.event_handler)

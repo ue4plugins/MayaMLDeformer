@@ -1,17 +1,24 @@
 # -*- coding: utf-8 -*-
 # Copyright Epic Games, Inc. All Rights Reserved
 
-from PySide2 import QtCore
-from PySide2 import QtWidgets
-
+from mldeformer.ui.Qt import QtCore, QtWidgets, QtGui
 
 class QtHelpers:
     @staticmethod
     def center_window(window):
-        rect = window.frameGeometry()
-        center_point = QtWidgets.QDesktopWidget().availableGeometry().center()
-        rect.moveCenter(center_point)
-        window.move(rect.topLeft())
+        if not window.parent() is None:
+            parent_geometry = window.parent().frameGeometry()
+            rect = window.frameGeometry()
+            center_point = parent_geometry.center()
+            rect.moveCenter(center_point)
+            window.move(rect.topLeft())
+        else:              
+            rect = window.frameGeometry()
+            screen = window.screen()
+            if screen:
+                center_point = screen.availableGeometry().center()
+                rect.moveCenter(center_point)
+                window.move(rect.topLeft())  
 
     @staticmethod
     def add_float_field(layout, row_index, name, value, decimals=3, min_value=-100000000.0, max_value=100000000.0,
@@ -38,7 +45,7 @@ class QtHelpers:
     def add_int_field(layout, row_index, name, value, min_value=-100000000, max_value=100000000,
                       min_label_text_width=120):
         name_label = QtWidgets.QLabel(name)
-        name_label.setMinimumWidth(min_label_text_width)
+        name_label.setMinimumWidth(min_label_text_width)        
         size_policy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Fixed)
         name_label.setSizePolicy(size_policy)
         value_widget = QtWidgets.QSpinBox()

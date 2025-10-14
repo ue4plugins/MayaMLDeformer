@@ -1,12 +1,14 @@
 # -*- coding: utf-8 -*-
 # Copyright Epic Games, Inc. All Rights Reserved
 
-from PySide2 import QtCore
 from maya import cmds
 
-from ...maya_event_handler import MayaEventHandler
-from ....qtgui.main_window import DeformerMainWindow
-from ....qtgui.export_window import DeformerExportWindow
+from mldeformer.ui.Qt import QtCore
+from mldeformer.ui.maya.maya_event_handler import MayaEventHandler
+from mldeformer.ui.qtgui.main_window import DeformerMainWindow
+from mldeformer.ui.qtgui.export_window import DeformerExportWindow
+from mldeformer.ui.qtgui.pose_extraction_window import PoseExtractionWindow
+from mldeformer.ui.qtgui.pose_remixer_window import PoseRemixerWindow
 
 # Module level state
 self = type("self", (object,), {})
@@ -16,6 +18,9 @@ self.installed = False
 self.menu_items = {}
 self._deformer_window = None
 self._export_window = None
+self._pose_extraction_window = None
+self._pose_remixer_window = None
+
 
 def _defer(func, time=100):
     timer = QtCore.QTimer()
@@ -59,14 +64,44 @@ def install_menu():
     def deferred():
         self.menu = Menu("UE MLDeformer")
         Divider()
-        Item("Data Generator", show_deformer_ui)
+        Item("Random Pose Generator", show_deformer_ui)
         Item("Export to Unreal", show_export_ui)
+        Item("Pose Extraction", show_pose_extraction_ui)
+        Item("Pose Remixer", show_pose_remixer_ui)
 
     uninstall_menu()
 
     # Give modules a chance to finish installing,
     # such that .activated() is correct
     _defer(deferred)
+
+
+def show_pose_extraction_ui():
+    if self._pose_extraction_window:
+        try:
+            self._pose_extraction_window.show()
+            return
+        except (RuntimeError, AttributeError):
+            pass
+
+    event_handler = MayaEventHandler()
+    window = PoseExtractionWindow(event_handler)
+    window.show()
+    self._pose_extraction_window = window
+
+
+def show_pose_remixer_ui():
+    if self._pose_remixer_window:
+        try:
+            self._pose_remixer_window.show()
+            return
+        except (RuntimeError, AttributeError):
+            pass
+
+    event_handler = MayaEventHandler()
+    window = PoseRemixerWindow(event_handler)
+    window.show()
+    self._pose_remixer_window = window
 
 
 def show_deformer_ui():
@@ -95,7 +130,7 @@ def show_export_ui():
     window = DeformerExportWindow(event_handler)
     window.show()
     self._export_window = window
-    
+
 
 def uninstall_menu():
     if self.menu:

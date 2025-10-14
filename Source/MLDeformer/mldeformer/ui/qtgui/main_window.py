@@ -5,17 +5,10 @@ import os
 import time
 from re import search
 
-import maya.cmds as cmds
-from PySide2 import QtCore
-from PySide2 import QtGui
-from PySide2 import QtWidgets
-
-from mldeformer.ui.config import Config
+from mldeformer.ui.Qt import QtCore, QtGui, QtWidgets
 from mldeformer.ui.qtgui.add_parameters_window import addParametersWindow
-from mldeformer.ui.qtgui.file_picker_field_widget import FilePickerFieldWidget
 from mldeformer.ui.qtgui.filter_widget import FilterWidget
 from mldeformer.ui.qtgui.helpers import QtHelpers
-from mldeformer.ui.qtgui.mesh_mapping_widget import MeshMappingWidget
 from mldeformer.ui.qtgui.param_minmax_setup_window import ParamMinMaxSetupWindow
 from mldeformer.ui.recent_file_list import RecentFileList
 from mldeformer.ui.qtgui.mesh_field_widget import MeshFieldWidget
@@ -77,7 +70,7 @@ class DeformerMainWindow(TopLevelWindow):
 
         # Create the main window.
         self.setObjectName('MLDeformerGeneratorWindow')
-        self.setWindowTitle('MLDeformer (Unreal Engine) - Training Data Generation Setup')
+        self.setWindowTitle('ML Deformer (Unreal Engine) - Training Data Generation Setup')
         self.resize(1150, 600)
         self.main_widget = QtWidgets.QWidget(self)
         self.setCentralWidget(self.main_widget)

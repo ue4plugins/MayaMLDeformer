@@ -1,12 +1,22 @@
+# -*- coding: utf-8 -*-
+# Copyright Epic Games, Inc. All Rights Reserved
+
 import traceback
 
 import maya.OpenMayaUI as mui
 import maya.cmds as cmds
 import maya.mel as mel
-from shiboken2 import wrapInstance
 
-from PySide2 import QtWidgets
+try:
+    from shiboken2 import wrapInstance
+except ImportError:
+    from shiboken6 import wrapInstance
 
+import time
+import datetime
+import math
+
+from mldeformer.ui.Qt import QtWidgets
 from mldeformer.ui.event_handler import EventHandler
 from mldeformer.ui.attribute_minmax import AttributeMinMax
 from mldeformer.ui.parameter import Parameter
@@ -14,16 +24,17 @@ from mldeformer.ui.maya.joint_limit import JointLimit
 from mldeformer.generator.maya.rig import check_interpenetrations
 from mldeformer.generator.maya.io.fbx_cmd import fbx_export
 from mldeformer.generator.maya.io.abc_cmd import abc_export
+from mldeformer.pose_extraction.maya.greedy_pose_extraction import extract_poses
+from mldeformer.pose_remixer.maya.pose_remixer import remix_poses
 
 try:
     import builtins
 except ImportError:
     import __builtin__ as builtins
-    
+
+
 def find_top_joint(node):
-    """Return the top joints of a given node.
-     >>> find_top_joints('spine_03')
-    """
+    """Return the top joints of a given node."""
     top_joint = None
 
     parents = cmds.listRelatives(node, parent=True, type='joint', fullPath=True)
@@ -39,6 +50,7 @@ def find_top_joint(node):
             # Get short-path.
             top_joint = cmds.ls(parent_joint)[0]
     return top_joint
+
 
 class MayaEventHandler(EventHandler):
     def __init__(self):
@@ -110,14 +122,14 @@ class MayaEventHandler(EventHandler):
             ray_mesh = self.generator_config.ray_mesh
             collision_mesh = self.generator_config.collision_mesh
             allowed_collisions = self.generator_config.allowed_collisions
-            if ray_mesh != "" and collision_mesh != "": 
+            if ray_mesh != "" and collision_mesh != "":
                 return check_interpenetrations.create_ray_mesh_test(ray_mesh, collision_mesh, allowed_collisions)
         elif self.generator_config.collision_mode == 2:
             collision_mesh = self.generator_config.collision_mesh
-            bone_list = [] 
+            bone_list = []
             if collision_mesh != "":
                 return check_interpenetrations.create_bone_mesh_test(bone_list, collision_mesh)
-    
+
         return None
 
     def save_fbx(self):
@@ -126,10 +138,10 @@ class MayaEventHandler(EventHandler):
             base_meshes = []
             for mesh_mapping in self.generator_config.mesh_mappings:
                 base_meshes.append(mesh_mapping.base_mesh_name)
-                
+
             result = fbx_export(
                 self.generator_config.output_fbx_file,
-                selected_meshes = base_meshes,
+                selected_meshes=base_meshes,
                 start_frame=0,
                 end_frame=self.generator_config.start_frame + self.generator_config.num_samples - 1,
             )
@@ -192,7 +204,7 @@ class MayaEventHandler(EventHandler):
         return default_value, min_value, max_value
 
     # Return the parent attribute name or None if the attribute has no parent
-    def get_attribute_group_name(self,  attribute_name, node_name):
+    def get_attribute_group_name(self, attribute_name, node_name):
         short_object_name = cmds.ls(node_name)[0]
         if cmds.attributeQuery(attribute_name, node=node_name, exists=True):
             parent_attribute = cmds.attributeQuery(attribute_name, node=node_name, listParent=True)
@@ -230,7 +242,7 @@ class MayaEventHandler(EventHandler):
         else:
             mesh_list = cmds.ls(selection=True, transforms=True)
             shapes_list = cmds.listRelatives(mesh_list, children=True, type='mesh')
-            if shapes_list: 
+            if shapes_list:
                 mesh_list = sorted(set(mesh_list))
             else:
                 mesh_list = list()
@@ -477,3 +489,52 @@ class MayaEventHandler(EventHandler):
         if len(parameters) > 0:
             parameters.sort(key=lambda x: x.display_name.lower())
         return parameters
+
+    def get_joint_names(self) -> dict:
+        joint_names = cmds.ls(type='joint')
+        parent_dict = dict()
+        for joint in joint_names:
+            parents = cmds.listRelatives(joint, parent=True, type='joint')
+            parent_dict[joint] = parents[0] if parents and parents[0] in joint_names else None
+        return parent_dict
+
+    def execute_pose_extraction(self, fbx_input_folder: str, num_output_poses: int, joint_name_list: list, max_frames_per_fbx: int = -1):
+        print('Performing pose extraction with settings:')
+        print('\tFbx input folder:', fbx_input_folder)
+        print('\tNum output poses:', num_output_poses)
+        print('\tNumber of joints:', len(joint_name_list))
+        print('\tJoint list:', joint_name_list)
+
+        start_time = time.time()
+        extract_poses(
+            fbx_input_folder=fbx_input_folder,
+            joints_to_include_in_search=joint_name_list,
+            max_frames_per_fbx=max_frames_per_fbx,
+            num_output_poses=num_output_poses)
+
+        passed_time = math.ceil(time.time() - start_time)
+        time_string = str(datetime.timedelta(seconds=passed_time))
+        message_box = QtWidgets.QMessageBox()
+        message_box.setWindowTitle('Pose Extraction Tool')
+        message_box.setText(f'Pose Extraction finished in {time_string} (HH:MM:SS)')
+        message_box.exec()
+
+    def execute_pose_remixing(self, joint_groups: list):
+        print('Executing pose remix on the following groups:')
+        for group in joint_groups:
+            group_string = '[GROUP]: '
+            for index, joint_name in enumerate(group):
+                group_string += joint_name
+                if index < len(group) - 1:
+                    group_string += ', '
+            print(group_string)
+
+        start_time = time.time()
+        remix_poses(joint_groups=joint_groups)
+
+        passed_time = math.ceil(time.time() - start_time)
+        time_string = str(datetime.timedelta(seconds=passed_time))
+        message_box = QtWidgets.QMessageBox()
+        message_box.setWindowTitle('Pose Remixer Tool')
+        message_box.setText(f'Pose Remixing finished in {time_string} (HH:MM:SS)')
+        message_box.exec()

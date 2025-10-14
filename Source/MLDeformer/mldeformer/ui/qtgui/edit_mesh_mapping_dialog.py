@@ -1,14 +1,9 @@
 # -*- coding: utf-8 -*-
 # Copyright Epic Games, Inc. All Rights Reserved
 
-from PySide2 import QtWidgets
-
-from mldeformer.ui.event_handler import EventHandler
-
+from mldeformer.ui.Qt import QtWidgets, QtCore
 from mldeformer.ui.qtgui.helpers import QtHelpers
 from mldeformer.ui.qtgui.mesh_field_widget import MeshFieldWidget
-
-from PySide2 import QtCore
 
 
 class EditMeshMappingDialog(QtWidgets.QDialog):

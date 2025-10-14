@@ -6,8 +6,7 @@ import logging
 import os
 import tempfile
 
-from PySide2 import QtCore
-from PySide2 import QtWidgets
+from mldeformer.ui.Qt import QtCore, QtWidgets
 from maya import cmds
 
 from . import (

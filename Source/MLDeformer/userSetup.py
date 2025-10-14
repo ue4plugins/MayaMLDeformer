@@ -14,6 +14,7 @@ def deferred():
 
     """
     try:
+        print("Installing ML Deformer")
         from mldeformer.ui.maya.integration.menu import interactive
         run_level = RUNLEVEL
         print("Installing generator")
@@ -21,6 +22,7 @@ def deferred():
     except Exception:
         traceback.print_exc()
 
+print("Defer ML Deformer")
 cmds.evalDeferred(deferred)
 
 

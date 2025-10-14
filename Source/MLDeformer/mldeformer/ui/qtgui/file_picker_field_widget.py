@@ -2,13 +2,7 @@
 # Copyright Epic Games, Inc. All Rights Reserved
 
 import os
-
-from PySide2 import QtCore
-from PySide2 import QtGui
-from PySide2 import QtWidgets
-
-from mldeformer.ui.event_handler import EventHandler
-
+from mldeformer.ui.Qt import QtCore, QtGui, QtWidgets
 
 class FilePickerFieldWidget(QtWidgets.QWidget):
     file_picked = QtCore.Signal(str)

@@ -3,16 +3,14 @@
 
 import os
 import time
-from re import search
 
 import maya.cmds as cmds
-from PySide2 import QtCore
-from PySide2 import QtGui
-from PySide2 import QtWidgets
+from mldeformer.ui.Qt import QtCore, QtGui, QtWidgets
 from mldeformer.ui.qtgui.helpers import QtHelpers
 from mldeformer.ui.qtgui.file_picker_field_widget import FilePickerFieldWidget
 from mldeformer.ui.qtgui.mesh_mapping_widget import MeshMappingWidget
 from mldeformer.ui.qtgui.top_level_window import TopLevelWindow
+
 
 class DeformerExportWindow(TopLevelWindow):
     min_label_text_width = 120
@@ -41,10 +39,11 @@ class DeformerExportWindow(TopLevelWindow):
         self.setWindowTitle('MLDeformer (Unreal Engine) - Export')
         self.main_widget = QtWidgets.QWidget(self)
         self.setCentralWidget(self.main_widget)
-        
+
         self.main_layout = QtWidgets.QVBoxLayout(self.main_widget)
         self.main_layout.setSpacing(2)
         config = self.event_handler.generator_config
+
         self.create_main_menu()
 
         # Create the mesh settings section.
@@ -77,17 +76,17 @@ class DeformerExportWindow(TopLevelWindow):
 
         start_frame = cmds.playbackOptions(q=True, ast=True)
         end_frame = cmds.playbackOptions(q=True, aet=True)
-        
+
         _, self.start_frame_widget = QtHelpers.add_int_field(layout=self.output_grid_layout,
-                                                             row_index=0, name='Start Frame:', 
+                                                             row_index=0, name='Start Frame:',
                                                              value=start_frame,
                                                              min_label_text_width=self.min_label_text_width)
-        
+
         _, self.end_frame_widget = QtHelpers.add_int_field(layout=self.output_grid_layout,
-                                                             row_index=1, name='End Frame:', 
-                                                             value=end_frame,
-                                                             min_label_text_width=self.min_label_text_width)
-        
+                                                           row_index=1, name='End Frame:',
+                                                           value=end_frame,
+                                                           min_label_text_width=self.min_label_text_width)
+
         self.output_fbx_file_widget = FilePickerFieldWidget(
             event_handler=self.event_handler,
             has_check_box=True,
@@ -110,7 +109,6 @@ class DeformerExportWindow(TopLevelWindow):
         QtHelpers.add_widget_field(self.output_grid_layout, row_index=3, name='Target Alembic File:',
                                    widget=self.output_abc_file_widget, min_label_text_width=self.min_label_text_width)
 
-
         self.output_fbx_file_widget.file_picked.connect(self.on_output_fbx_file_picked)
         self.output_abc_file_widget.file_picked.connect(self.on_output_abc_file_picked)
         self.output_abc_file_widget.check_box_changed.connect(self.on_output_abc_file_check_box_changed)
@@ -127,10 +125,10 @@ class DeformerExportWindow(TopLevelWindow):
         self.export_cancel_layout.addWidget(self.cancel_button)
         self.main_layout.addLayout(self.export_cancel_layout)
 
-        QtHelpers.center_window(self)
         self.resize(400, 400)
+        QtHelpers.center_window(self)
         self.update_ui_widgets()
-    
+
     def update_ui_widgets(self):
         config = self.event_handler.generator_config
         self.output_fbx_file_widget.set_filename(config.output_fbx_file)
@@ -139,14 +137,14 @@ class DeformerExportWindow(TopLevelWindow):
         self.output_abc_file_widget.enabled_check_box.setChecked(config.save_target_alembic)
         self.mesh_widget.update()
         self.on_mesh_mappings_changed()
-        
+
     # When we press the Export button.
     def on_export_button_pressed(self):
         config = self.event_handler.generator_config
 
         # Build a list of errors.
         pre_check_errors = list()
-            
+
         mesh_mapping_index = self.event_handler.get_first_enabled_mesh_mapping_index()
         if mesh_mapping_index == -1:  # We have no enabled meshes to export.
             error_text = 'There are no enabled mesh mappings, please add some meshes or enable at least one.'
@@ -166,6 +164,7 @@ class DeformerExportWindow(TopLevelWindow):
         start_time = time.time()
         cmds.refresh(suspend=True)
 
+        user_cancelled = False
         try:
             # save the Fbx.
             if self.output_fbx_file_widget.is_checked():
@@ -180,8 +179,7 @@ class DeformerExportWindow(TopLevelWindow):
                 self.event_handler.stop_progress_bar()
 
             if user_cancelled:
-                QtWidgets.QMessageBox.information(self, 'Operation cancelled', 'Generation cancelled by user.',
-                                                  QtWidgets.QMessageBox.Ok)
+                QtWidgets.QMessageBox.information(self, 'Operation cancelled', 'Generation cancelled by user.', QtWidgets.QMessageBox.Ok)
                 return
 
             # save the Alembic if we enabled exporting it, and if there is actually a target mesh.
@@ -204,8 +202,7 @@ class DeformerExportWindow(TopLevelWindow):
             cmds.refresh(suspend=False)
 
         if user_cancelled:
-            QtWidgets.QMessageBox.information(self, 'Operation cancelled', 'Generation cancelled by user.',
-                                              QtWidgets.QMessageBox.Ok)
+            QtWidgets.QMessageBox.information(self, 'Operation cancelled', 'Generation cancelled by user.', QtWidgets.QMessageBox.Ok)
             return
 
         # Report the elapsed time.
@@ -239,7 +236,7 @@ class DeformerExportWindow(TopLevelWindow):
             abc_file = os.path.basename(os.path.abspath(config.output_abc_file))
 
             final_message = ""
-            
+
             if self.output_fbx_file_widget.is_checked():
                 final_message += 'Output Fbx: <a href=\'{}\'><span style=\'color:white;\'>{}</span></a><b>/{}</b><br><br>'.format(
                     fbx_folder, fbx_folder, fbx_file)
@@ -249,23 +246,21 @@ class DeformerExportWindow(TopLevelWindow):
                     abc_folder, abc_folder, abc_file)
 
             final_message += 'Generation time: <b>{}</b> (hh:mm:ss)'.format(time_passed_string)
-            QtWidgets.QMessageBox.information(self, 'Finished Generating Training Data', final_message,
-                                              QtWidgets.QMessageBox.Ok)
+            QtWidgets.QMessageBox.information(self, 'Finished Generating Training Data', final_message, QtWidgets.QMessageBox.Ok)
 
         self.close()
         self.export_files_pressed.emit()
-        # When we press the Export button.
 
     def on_cancel_button_pressed(self):
         self.close()
         self.cancel_pressed.emit()
-        
+
     def on_mesh_mappings_changed(self):
         mapping_index_with_target = self.event_handler.get_first_enabled_mesh_mapping_index_with_target_mesh()
-            
+
     def on_output_fbx_file_picked(self, file_path):
         self.event_handler.generator_config.output_fbx_file = file_path
-        
+
     def on_output_abc_file_picked(self, file_path):
         self.event_handler.generator_config.output_abc_file = file_path
 
@@ -274,14 +269,3 @@ class DeformerExportWindow(TopLevelWindow):
 
     def on_output_fbx_file_check_box_changed(self, is_checked):
         self.event_handler.generator_config.save_target_fbx = is_checked
-
-    def select_listed_meshes(mesh_list):
-        shapes_list = cmds.ls(selection=False, long=True, objectsOnly=True, geometry=True, type='mesh')
-        meshes_to_remove = set()
-        if shapes_list:
-            all_meshes = cmds.listRelatives(shapes_list, parent=True)
-            meshes_to_remove = set(all_meshes) - set(mesh_list)  # Remove duplicates and sort by name
-
-        all_objects = cmds.ls()
-        objects_to_select = list(set(all_objects) - meshes_to_remove)
-        cmds.select(objects_to_select)

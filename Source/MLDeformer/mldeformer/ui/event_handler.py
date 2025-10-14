@@ -12,6 +12,7 @@ from .json_encoder import JsonEncoder
 from .global_settings import GlobalSettings
 from mldeformer.generator.maya.generation import pose_generator
 
+
 # Event handler base class.
 class EventHandler(object):
     def __init__(self):
@@ -21,7 +22,7 @@ class EventHandler(object):
         user_home_folder = expanduser('~')
         base_deformer_path = os.path.join(user_home_folder, 'UE_MLDeformer')
         dcc_name = self.get_dcc_name()
-        self.rig_deformer_path = os.path.join(base_deformer_path, dcc_name)
+        self.rig_deformer_path = os.path.abspath(os.path.join(base_deformer_path, dcc_name))
         self.output_path = os.path.join(base_deformer_path, 'Output')
         print('[MLDeformer] Settings folder used: {}'.format(self.rig_deformer_path))
         try:
@@ -122,6 +123,21 @@ class EventHandler(object):
     # Stop the progress bar session.
     def stop_progress_bar(self):
         raise Exception('Please implement the stop_progress_bar function in your derived event handler!')
+
+    # Get the dictionary where the key is the joint name, and the value is the parent joint name.
+    def get_joint_names(self) -> dict:
+        raise Exception('Please implement the get_joint_names function in your derived event handler!')
+
+    # Generate an animation in the current scene that has 'num_output_poses' frames. 
+    # Each pose must be one extracted from any of the Fbx files inside the 'fbx_input_folder' folder.
+    # This should find the most important poses that will be used for training.
+    def execute_pose_extraction(self, fbx_input_folder: str, num_output_poses: int, joint_name_list: list, max_frames_per_fbx: int = -1):
+        raise Exception('Please implement the execute_pose_extraction function in your derived event handler!')
+
+    # Perform region based temporal resampling of the animation scene.
+    # The joint_groups parameter is a list of lists of joint_names. Each list is a group/region.
+    def execute_pose_remixing(self, joint_groups: list):
+        raise Exception('Please implement the execute_pose_remixing function in your derived event handler!')
 
     # generate the frames in the DCC scene.
     def generate(self):

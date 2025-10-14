@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 # Copyright Epic Games, Inc. All Rights Reserved
 
-from PySide2 import QtCore
-from PySide2 import QtWidgets
+from mldeformer.ui.Qt import QtCore, QtWidgets
 
 
 class FilterWidget(QtWidgets.QWidget):
@@ -22,6 +21,7 @@ class FilterWidget(QtWidgets.QWidget):
         self.line_edit = QtWidgets.QLineEdit()
         self.line_edit.setPlaceholderText('Enter text')
         self.line_edit.setFixedHeight(fixed_height_value)
+        self.line_edit.setMinimumWidth(150)
         self.main_layout.addWidget(self.line_edit)
 
         self.clear_button = QtWidgets.QPushButton('x')

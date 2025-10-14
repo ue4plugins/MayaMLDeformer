@@ -5,13 +5,9 @@ import json
 import os
 from re import search
 
-from PySide2 import QtCore
-from PySide2 import QtGui
-from PySide2 import QtWidgets
-
+from mldeformer.ui.Qt import QtCore, QtGui, QtWidgets
 from mldeformer.ui.parameter import Parameter
 from mldeformer.ui.parameter_filter import ParameterFilter
-from mldeformer.ui.event_handler import EventHandler
 from mldeformer.ui.qtgui.editable_list_widget import EditableListWidget
 from mldeformer.ui.qtgui.filter_widget import FilterWidget
 from mldeformer.ui.qtgui.helpers import QtHelpers
